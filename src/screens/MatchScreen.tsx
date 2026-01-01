@@ -1,80 +1,29 @@
 import { View, Text, StyleSheet } from "react-native";
-import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { getMatchResult } from "../utils/getMatchResults";
+import { useMatchEngine } from "../hooks/useMatchEngine";
 
 export default function MatchScreen() {
   const navigation = useNavigation();
 
-  //Simulate steps
-  const [mySteps, setMySteps] = useState(0);
-  const [opponentSteps, setOpponentSteps] = useState(0);
-
-  //Target Steps
   const TARGET_STEPS = 100;
 
-  const [timeLeft, setTimeLeft] = useState(100);
-  const [matchEnded, setMatchEnded] = useState(false);
-
-  const myProgress = (mySteps / TARGET_STEPS) * 100;
-  const opponentProgress = (opponentSteps / TARGET_STEPS) * 100;
-
-  useEffect(() => {
-    if (matchEnded) return;
-
-    const interval = setInterval(() => {
-      setMySteps((prev) => prev + Math.floor(Math.random() * 5) + 1);
-      setOpponentSteps((prev) => prev + Math.floor(Math.random() * 5) + 1);
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [matchEnded]);
-
-  // 1) Timer: ONLY updates timeLeft, never navigates
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Let it hit 0, referee effect will handle ending
-          return 0;
-        }
-        return prev - 1;
+  // Use the match engine
+  const { mySteps, opponentSteps, timeLeft, myProgress, opponentProgress } =
+    useMatchEngine(TARGET_STEPS, ({ mySteps, opponentSteps, result }) => {
+      // Navigate to results when match ends
+      (navigation as any).navigate("Results", {
+        mySteps,
+        opponentSteps,
+        result,
       });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // 2) Single referee: decides when the match ends and navigates
-  useEffect(() => {
-    if (matchEnded) return;
-
-    const someoneReachedTarget =
-      mySteps >= TARGET_STEPS || opponentSteps >= TARGET_STEPS;
-
-    const timeIsUp = timeLeft === 0;
-
-    if (!someoneReachedTarget && !timeIsUp) {
-      return;
-    }
-
-    // Mark match as ended so nothing else can trigger it again
-    setMatchEnded(true);
-
-    const result = getMatchResult(mySteps, opponentSteps, TARGET_STEPS);
-    // Single navigation point
-    (navigation as any).navigate("Results", {
-      mySteps,
-      opponentSteps,
-      result,
     });
-  }, [timeLeft, mySteps, opponentSteps, matchEnded, navigation]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Match In Progress</Text>
       <Text style={styles.timer}>Time Left: {timeLeft}s</Text>
 
+      {/* Player Section */}
       <View style={styles.playerSection}>
         <Text style={styles.label}>You</Text>
         <Text style={styles.steps}>{mySteps} steps</Text>
@@ -83,6 +32,7 @@ export default function MatchScreen() {
         </View>
       </View>
 
+      {/* Opponent Section */}
       <View style={styles.playerSection}>
         <Text style={styles.label}>Opponent</Text>
         <Text style={styles.steps}>{opponentSteps} steps</Text>

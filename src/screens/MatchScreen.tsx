@@ -1,38 +1,79 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { getMatchResult } from "../utils/getMatchResults";
 
 export default function MatchScreen() {
   const navigation = useNavigation();
+
+  //Simulate steps
+  const [mySteps, setMySteps] = useState(0);
+  const [opponentSteps, setOpponentSteps] = useState(0);
+
+  //Target Steps
   const TARGET_STEPS = 100;
 
-  // Hardcode steps for now
-  const mySteps = 1;
-  const opponentSteps = 72;
+  const [timeLeft, setTimeLeft] = useState(100);
+  const [matchEnded, setMatchEnded] = useState(false);
 
-  // Progress Bar
   const myProgress = (mySteps / TARGET_STEPS) * 100;
   const opponentProgress = (opponentSteps / TARGET_STEPS) * 100;
 
-  //End match logic
-  const endMatch = () => {
-    const result =
-      mySteps > opponentSteps
-        ? "win"
-        : mySteps < opponentSteps
-        ? "lose"
-        : "draw";
+  useEffect(() => {
+    if (matchEnded) return;
 
+    const interval = setInterval(() => {
+      setMySteps((prev) => prev + Math.floor(Math.random() * 5) + 1);
+      setOpponentSteps((prev) => prev + Math.floor(Math.random() * 5) + 1);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [matchEnded]);
+
+  // 1) Timer: ONLY updates timeLeft, never navigates
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          // Let it hit 0, referee effect will handle ending
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // 2) Single referee: decides when the match ends and navigates
+  useEffect(() => {
+    if (matchEnded) return;
+
+    const someoneReachedTarget =
+      mySteps >= TARGET_STEPS || opponentSteps >= TARGET_STEPS;
+
+    const timeIsUp = timeLeft === 0;
+
+    if (!someoneReachedTarget && !timeIsUp) {
+      return;
+    }
+
+    // Mark match as ended so nothing else can trigger it again
+    setMatchEnded(true);
+
+    const result = getMatchResult(mySteps, opponentSteps, TARGET_STEPS);
+    // Single navigation point
     (navigation as any).navigate("Results", {
       mySteps,
       opponentSteps,
       result,
     });
-  };
+  }, [timeLeft, mySteps, opponentSteps, matchEnded, navigation]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Match In Progress</Text>
+      <Text style={styles.timer}>Time Left: {timeLeft}s</Text>
 
       <View style={styles.playerSection}>
         <Text style={styles.label}>You</Text>
@@ -54,10 +95,6 @@ export default function MatchScreen() {
           />
         </View>
       </View>
-      {/* Temporary button to end match */}
-      <TouchableOpacity style={styles.button} onPress={endMatch}>
-        <Text style={styles.buttonText}>End Match</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -72,6 +109,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  timer: {
+    fontSize: 22,
+    fontWeight: "600",
     textAlign: "center",
     marginBottom: 40,
   },
@@ -100,17 +143,5 @@ const styles = StyleSheet.create({
   progressFillOpponent: {
     height: "100%",
     backgroundColor: "#FF3B30",
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 40,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
   },
 });

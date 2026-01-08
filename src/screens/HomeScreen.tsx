@@ -1,9 +1,28 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { supabase } from "../lib/supabase";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+
+  const handleFindMatch = async () => {
+    // 1. Get the current user
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user;
+
+    if (!user) {
+      console.log("No user found");
+      return;
+    }
+
+    // 2. Insert into match_queue
+    await supabase.from("match_queue").insert([{ user_id: user.id }]);
+
+    // 3. Navigate to matchmaking screen
+    navigation.navigate("Matchmaking" as never);
+  };
 
   return (
     <View style={styles.container}>
@@ -20,16 +39,14 @@ export default function HomeScreen() {
           <Text style={styles.statNumber}>5</Text>
           <Text style={styles.statLabel}>Losses</Text>
         </View>
+
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>1</Text>
           <Text style={styles.statLabel}>Draws</Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("Matchmaking" as never)}
-      >
+      <TouchableOpacity style={styles.button} onPress={handleFindMatch}>
         <Text style={styles.buttonText}>Find Match</Text>
       </TouchableOpacity>
     </View>

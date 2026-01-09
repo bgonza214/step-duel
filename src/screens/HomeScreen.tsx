@@ -1,52 +1,75 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { supabase } from "../lib/supabase";
+import { getCurrentUser } from "../services/auth/session";
+import { getUserStats } from "../services/user/getStats";
+import { handleFindMatch } from "../services/matchmaking/findMatch";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
 
-  const handleFindMatch = async () => {
-    // 1. Get the current user
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ wins: 0, losses: 0, draws: 0 });
 
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    console.log("📊 [HomeScreen] Loading user stats...");
+
+    const user = await getCurrentUser();
     if (!user) {
-      console.log("No user found");
+      console.log("❌ [HomeScreen] No user found");
+      setLoading(false);
       return;
     }
 
-    // 2. Insert into match_queue
-    await supabase.from("match_queue").insert([{ user_id: user.id }]);
+    const userStats = await getUserStats(user.id);
+    setStats(userStats);
 
-    // 3. Navigate to matchmaking screen
-    navigation.navigate("Matchmaking" as never);
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Step Duel</Text>
-      <Text style={styles.steps}>3,482 steps today</Text>
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>12</Text>
+          <Text style={styles.statNumber}>{stats.wins}</Text>
           <Text style={styles.statLabel}>Wins</Text>
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>5</Text>
+          <Text style={styles.statNumber}>{stats.losses}</Text>
           <Text style={styles.statLabel}>Losses</Text>
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>1</Text>
+          <Text style={styles.statNumber}>{stats.draws}</Text>
           <Text style={styles.statLabel}>Draws</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleFindMatch}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => handleFindMatch(navigation)}
+      >
         <Text style={styles.buttonText}>Find Match</Text>
       </TouchableOpacity>
     </View>

@@ -1,47 +1,106 @@
+import { useEffect, useState } from "react";
+import { View, Text, Button, StyleSheet } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { supabase } from "../lib/supabase";
 
 export default function ResultsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { matchId } = route.params as { matchId: string };
 
-  // Read Data Passed
-  const { mySteps, opponentSteps, result } = route.params as {
-    mySteps: number;
-    opponentSteps: number;
-    result: "win" | "lose" | "draw";
-  };
+  const [match, setMatch] = useState<any>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const getTitle = () => {
-    if (result === "win") return "You Win!";
-    if (result === "lose") return "You Lose!";
-    return "It's a Draw!";
-  };
+  useEffect(() => {
+    console.log("🏁 [ResultsScreen] Mounted with matchId:", matchId);
+
+    const load = async () => {
+      setLoading(true);
+
+      // 1️⃣ Fetch match row
+      console.log("📨 [ResultsScreen] Fetching match...");
+      const { data: matchData, error: matchError } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("id", matchId)
+        .single();
+
+      if (matchError) {
+        console.log("❌ [ResultsScreen] Error fetching match:", matchError);
+        setLoading(false);
+        return;
+      }
+
+      console.log("📊 [ResultsScreen] Match:", matchData);
+      setMatch(matchData);
+
+      // 2️⃣ Fetch match participants
+      console.log("📨 [ResultsScreen] Fetching match participants...");
+      const { data: participantData, error: participantError } = await supabase
+        .from("match_participants")
+        .select("*")
+        .eq("match_id", matchId);
+
+      if (participantError) {
+        console.log(
+          "❌ [ResultsScreen] Error fetching participants:",
+          participantError
+        );
+        setLoading(false);
+        return;
+      }
+
+      console.log("👥 [ResultsScreen] Participants:", participantData);
+      setParticipants(participantData);
+
+      setLoading(false);
+    };
+
+    load();
+  }, [matchId]);
+
+  if (loading || !match) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Loading results…</Text>
+      </View>
+    );
+  }
+
+  // Extract participant steps
+  const p1 = participants.find((p) => p.user_id === match.player1_id);
+  const p2 = participants.find((p) => p.user_id === match.player2_id);
+
+  const player1Steps = p1?.final_steps ?? match.player1_steps ?? 0;
+  const player2Steps = p2?.final_steps ?? match.player2_steps ?? 0;
+
+  // Determine result text
+  let resultText = "Draw!";
+  if (match.winner_user_id === match.player1_id) resultText = "Player 1 Wins!";
+  if (match.winner_user_id === match.player2_id) resultText = "Player 2 Wins!";
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{getTitle()}</Text>
+      <Text style={styles.title}>Match Results</Text>
+      <Text style={styles.result}>{resultText}</Text>
 
-      <View style={styles.resultsBox}>
-        <Text style={styles.label}>Your Steps</Text>
-        <Text style={styles.value}>{mySteps}</Text>
-
-        <Text style={[styles.label, { marginTop: 20 }]}>Opponent Steps</Text>
-        <Text style={styles.value}>{opponentSteps}</Text>
+      <View style={styles.stepsBox}>
+        <Text style={styles.stepsText}>Player 1: {player1Steps} steps</Text>
+        <Text style={styles.stepsText}>Player 2: {player2Steps} steps</Text>
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
+      <Button
+        title="Play Again"
         onPress={() => (navigation as any).navigate("Matchmaking")}
-      >
-        <Text style={styles.buttonText}>Play Again</Text>
-      </TouchableOpacity>
+      />
 
-      <TouchableOpacity
-        style={[styles.button, styles.homeButton]}
+      <View style={{ height: 20 }} />
+
+      <Button
+        title="Home"
         onPress={() => (navigation as any).navigate("Home")}
-      >
-        <Text style={styles.buttonText}>Home</Text>
-      </TouchableOpacity>
+      />
     </View>
   );
 }
@@ -49,46 +108,27 @@ export default function ResultsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#fff",
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 32,
     fontWeight: "700",
-    marginBottom: 40,
+    marginBottom: 20,
   },
-  resultsBox: {
-    width: "80%",
-    padding: 24,
-    backgroundColor: "#f2f2f2",
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  label: {
-    fontSize: 18,
-    color: "#555",
-  },
-  value: {
+  result: {
     fontSize: 28,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  homeButton: {
-    backgroundColor: "#555",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
     fontWeight: "600",
+    marginBottom: 30,
+    color: "#007AFF",
+  },
+  stepsBox: {
+    marginBottom: 40,
+  },
+  stepsText: {
+    fontSize: 22,
+    marginVertical: 8,
   },
 });

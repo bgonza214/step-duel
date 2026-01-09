@@ -51,6 +51,12 @@ export default function MatchmakingScreen() {
             const match = payload.new;
             console.log("🔥 [MatchmakingScreen] Match INSERT detected:", match);
 
+            // Ignore completed matches
+            if (match.status === "completed") {
+              console.log("⛔ [MatchmakingScreen] Ignoring completed match");
+              return;
+            }
+
             // Filter manually
             if (match.player1_id === user.id || match.player2_id === user.id) {
               console.log(
@@ -89,6 +95,7 @@ export default function MatchmakingScreen() {
         .from("matches")
         .select("*")
         .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+        .neq("status", "completed") // 👈 ignore completed matches
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();

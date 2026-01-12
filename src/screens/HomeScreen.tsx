@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+
+import StepsDisplay from "../components/StepsDisplay"; // 👈 TEMPORARY for testing
 import { getCurrentUser } from "../services/auth/session";
 import { getUserStats } from "../services/user/getStats";
 import { handleFindMatch } from "../services/matchmaking/findMatch";
@@ -48,6 +50,9 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Step Duel</Text>
+
+      {/* TEMPORARY: Live step tracking for testing */}
+      <StepsDisplay />
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
